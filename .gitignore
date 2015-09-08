@@ -1,2 +1,6 @@
 *.pyc
 cv/*.p
+data
+eval
+*.json
+*.zip

@@ -4,12 +4,12 @@ import code
 from imagernn.utils import initw
 
 class RNNGenerator:
-  """ 
+  """
   An RNN generator.
   This class is as stupid as possible. It gets some conditioning vector,
   a sequence of input vectors, and produces a sequence of output vectors
   """
-  
+
   @staticmethod
   def init(input_size, hidden_size, output_size):
 
@@ -70,11 +70,13 @@ class RNNGenerator:
     # recurrence iteration for the Multimodal RNN similar to one described in Karpathy et al.
     d = model['Wd'].shape[0] # size of hidden layer
     n = Xs.shape[0]
+    #print 'xsss ', Xs.shape
+    #sooda: the dimend of n is depend of the length of sentence. because of H is a temp value, so it doesn't matter
     H = np.zeros((n, d)) # hidden layer representation
+#for every sentence, H is init with zero
     Whh = model['Whh']
     bhh = model['bhh']
     for t in xrange(n):
-      
       prev = np.zeros(d) if t == 0 else H[t-1]
       if not rnn_feed_once or t == 0:
         # feed the image in if feedonce is false. And it it is true, then
@@ -108,7 +110,7 @@ class RNNGenerator:
       cache['drop_prob_encoder'] = drop_prob_encoder
       cache['drop_prob_decoder'] = drop_prob_decoder
       cache['rnn_feed_once'] = rnn_feed_once
-      if drop_prob_encoder > 0: 
+      if drop_prob_encoder > 0:
         cache['Us'] = Us # keep the dropout masks around for backprop
         cache['Ui'] = Ui
       if drop_prob_decoder > 0: cache['U2'] = U2
@@ -150,7 +152,7 @@ class RNNGenerator:
 
       if not rnn_feed_once or t == 0:
         dXi += dht # backprop to Xi
-        
+
       dXsh[t] += dht # backprop to word encodings
       dbhh[0] += dht # backprop to bias
 
@@ -176,7 +178,7 @@ class RNNGenerator:
 
   @staticmethod
   def predict(Xi, model, Ws, params, **kwargs):
-    
+
     beam_size = kwargs.get('beam_size', 1)
     relu_encoders = params.get('rnn_relu_encoders', 0)
     rnn_feed_once = params.get('rnn_feed_once', 0)
@@ -197,11 +199,13 @@ class RNNGenerator:
       # NOTE: code duplication here with lstm_generator
       # ideally the beam search would be abstracted away nicely and would take
       # a TICK function or something, but for now lets save time & copy code around. Sorry ;\
-      beams = [(0.0, [], np.zeros(d))] 
+      beams = [(0.0, [], np.zeros(d))]
+      print 'beam search rnn'
       nsteps = 0
       while True:
         beam_candidates = []
         for b in beams:
+#get the last word of beams, if the beam reach the end, then not to continue
           ixprev = b[1][-1] if b[1] else 0
           if ixprev == 0 and b[1]:
             # this beam predicted end token. Keep in the candidates but don't expand it out any more
@@ -229,6 +233,7 @@ class RNNGenerator:
           for i in xrange(beam_size):
             wordix = top_indices[i]
             beam_candidates.append((b[0] + y1[wordix], b[1] + [wordix], h1))
+            print 'bbb ', b[0], b[1]
 
         beam_candidates.sort(reverse = True) # decreasing order
         beams = beam_candidates[:beam_size] # truncate to get new beams
@@ -236,6 +241,7 @@ class RNNGenerator:
         if nsteps >= 20: # bad things are probably happening, break out
           break
       # strip the intermediates
+#b[0] is score, b[1] is the list of word_id
       predictions = [(b[0], b[1]) for b in beams]
 
     else:

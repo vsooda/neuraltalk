@@ -11,7 +11,7 @@ import cPickle as pickle
 
 from imagernn.data_provider import getDataProvider
 from imagernn.solver import Solver
-from imagernn.imagernn_utils import decodeGenerator, eval_split
+from imagernn.imagernn_utils import batchDecodeGenerator, eval_split
 
 def preProBuildWordVocab(sentence_iterator, word_count_threshold):
   # count up all word counts so that we can threshold
@@ -42,6 +42,8 @@ def preProBuildWordVocab(sentence_iterator, word_count_threshold):
     ixtoword[ix] = w
     ix += 1
 
+  print 'total word', ix
+
   # compute bias vector, which is related to the log probability of the distribution
   # of the labels (words) and how often they occur. We will use this vector to initialize
   # the decoder weights, so that the loss function doesnt show a huge increase in performance
@@ -55,16 +57,20 @@ def preProBuildWordVocab(sentence_iterator, word_count_threshold):
   bias_init_vector -= np.max(bias_init_vector) # shift to nice numeric range
   return wordtoix, ixtoword, bias_init_vector
 
+#sooda: totally forward, backward, and compute the cost and gradient
 def RNNGenCost(batch, model, params, misc):
   """ cost function, returns cost and gradients for model """
   regc = params['regc'] # regularization cost
-  BatchGenerator = decodeGenerator(params)
+  BatchGenerator = batchDecodeGenerator(params)
   wordtoix = misc['wordtoix']
+  print 'batch...'
+  print len(batch)
 
   # forward the RNN on each image sentence pair
   # the generator returns a list of matrices that have word probabilities
   # and a list of cache objects that will be needed for backprop
   Ys, gen_caches = BatchGenerator.forward(batch, model, params, misc, predict_mode = False)
+  print 'batch generator output ' , np.shape(Ys)
 
   # compute softmax costs for all generated sentences, and the gradients on top
   loss_cost = 0.0
@@ -78,9 +84,10 @@ def RNNGenCost(batch, model, params, misc):
     gtix.append(0) # don't forget END token must be predicted in the end!
     # fetch the predicted probabilities, as rows
     Y = Ys[i]
-    maxes = np.amax(Y, axis=1, keepdims=True)
+    maxes = np.amax(Y, axis=1, keepdims=True) #return the maxvalue of every row
+    #print np.shape(Y) # n * vocab_word_num
     e = np.exp(Y - maxes) # for numerical stability shift into good numerical range
-    P = e / np.sum(e, axis=1, keepdims=True)
+    P = e / np.sum(e, axis=1, keepdims=True) # the probabilities for every token with each word
     loss_cost += - np.sum(np.log(1e-20 + P[range(len(gtix)),gtix])) # note: add smoothing to not get infs
     logppl += - np.sum(np.log2(1e-20 + P[range(len(gtix)),gtix])) # also accumulate log2 perplexities
     logppln += len(gtix)
@@ -91,11 +98,12 @@ def RNNGenCost(batch, model, params, misc):
     dYs.append(P)
 
   # backprop the RNN
+#dYs is the value of error, gen_caches is the used weights
   grads = BatchGenerator.backward(dYs, gen_caches)
 
   # add L2 regularization cost and gradients
   reg_cost = 0.0
-  if regc > 0:    
+  if regc > 0:
     for p in misc['regularize']:
       mat = model[p]
       reg_cost += 0.5 * regc * np.sum(mat * mat)
@@ -130,9 +138,11 @@ def main(params):
   # go over all training sentences and find the vocabulary we want to use, i.e. the words that occur
   # at least word_count_threshold number of times
   misc['wordtoix'], misc['ixtoword'], bias_init_vector = preProBuildWordVocab(dp.iterSentences('train'), word_count_threshold)
+#  print '...'
+#  print misc['wordtoix']
 
   # delegate the initialization of the model to the Generator class
-  BatchGenerator = decodeGenerator(params)
+  BatchGenerator = batchDecodeGenerator(params)
   init_struct = BatchGenerator.init(params, misc)
   model, misc['update'], misc['regularize'] = (init_struct['model'], init_struct['update'], init_struct['regularize'])
 
@@ -231,7 +241,7 @@ def main(params):
     if (((it+1) % eval_period_in_iters) == 0 and it < max_iters - 5) or is_last_iter:
       val_ppl2 = eval_split('val', dp, model, params, misc) # perform the evaluation on VAL set
       print 'validation perplexity = %f' % (val_ppl2, )
-      
+
       # abort training if the perplexity is no good
       min_ppl_or_abort = params['min_ppl_or_abort']
       if val_ppl2 > min_ppl_or_abort and min_ppl_or_abort > 0:
@@ -274,7 +284,7 @@ if __name__ == "__main__":
   parser.add_argument('--worker_status_output_directory', dest='worker_status_output_directory', type=str, default='status/', help='directory to write worker status JSON blobs to')
   parser.add_argument('--write_checkpoint_ppl_threshold', dest='write_checkpoint_ppl_threshold', type=float, default=-1, help='ppl threshold above which we dont bother writing a checkpoint to save space')
   parser.add_argument('--init_model_from', dest='init_model_from', type=str, default='', help='initialize the model parameters from some specific checkpoint?')
-  
+
   # model parameters
   parser.add_argument('--generator', dest='generator', type=str, default='lstm', help='generator to use')
   parser.add_argument('--image_encoding_size', dest='image_encoding_size', type=int, default=256, help='size of the image encoding')

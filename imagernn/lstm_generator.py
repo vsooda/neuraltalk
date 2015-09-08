@@ -4,10 +4,10 @@ import code
 from imagernn.utils import initw
 
 class LSTMGenerator:
-  """ 
+  """
   A multimodal long short-term memory (LSTM) generator
   """
-  
+
   @staticmethod
   def init(input_size, hidden_size, output_size):
 
@@ -73,7 +73,7 @@ class LSTMGenerator:
 
       # compute all gate activations. dots:
       IFOG[t] = Hin[t].dot(WLSTM)
-      
+
       # non-linearities
       IFOGf[t,:3*d] = 1.0/(1.0+np.exp(-IFOG[t,:3*d])) # sigmoids; these are the gates
       IFOGf[t,3*d:] = np.tanh(IFOG[t, 3*d:]) # tanh
@@ -97,7 +97,7 @@ class LSTMGenerator:
     bd = model['bd']
     # NOTE1: we are leaving out the first prediction, which was made for the image
     # and is meaningless.
-    Y = Hout[1:, :].dot(Wd) + bd 
+    Y = Hout[1:, :].dot(Wd) + bd
 
     cache = {}
     if not predict_mode:
@@ -170,7 +170,7 @@ class LSTMGenerator:
         dC[t-1] += IFOGf[t,d:2*d] * dC[t]
       dIFOGf[t,:d] = IFOGf[t, 3*d:] * dC[t]
       dIFOGf[t, 3*d:] = IFOGf[t,:d] * dC[t]
-      
+
       # backprop activation functions
       dIFOG[t,3*d:] = (1 - IFOGf[t, 3*d:] ** 2) * dIFOGf[t,3*d:]
       y = IFOGf[t,:3*d]
@@ -192,8 +192,8 @@ class LSTMGenerator:
 
   @staticmethod
   def predict(Xi, model, Ws, params, **kwargs):
-    """ 
-    Run in prediction mode with beam search. The input is the vector Xi, which 
+    """
+    Run in prediction mode with beam search. The input is the vector Xi, which
     should be a 1-D array that contains the encoded image vector. We go from there.
     Ws should be NxD array where N is size of vocabulary + 1. So there should be exactly
     as many rows in Ws as there are outputs in the decoder Y. We are passing in Ws like
@@ -236,17 +236,19 @@ class LSTMGenerator:
 
     # forward prop the image
     (y0, h, c) = LSTMtick(Xi, np.zeros(d), np.zeros(d))
-    
+
     # perform BEAM search. NOTE: I am not very confident in this implementation since I don't have
     # a lot of experience with these models. This implements my current understanding but I'm not
     # sure how to handle beams that predict END tokens. TODO: research this more.
     if beam_size > 1:
       # log probability, indices of words predicted in this beam so far, and the hidden and cell states
-      beams = [(0.0, [], h, c)] 
+      beams = [(0.0, [], h, c)]
       nsteps = 0
+      print 'beam search lstm'
       while True:
         beam_candidates = []
         for b in beams:
+#get the last word of beams, if the beam reach the end, then not to continue
           ixprev = b[1][-1] if b[1] else 0 # start off with the word where this beam left off
           if ixprev == 0 and b[1]:
             # this beam predicted end token. Keep in the candidates but don't expand it out any more
@@ -268,6 +270,7 @@ class LSTMGenerator:
         if nsteps >= 20: # bad things are probably happening, break out
           break
       # strip the intermediates
+#b[0] is score, b[1] is the list of word_id
       predictions = [(b[0], b[1]) for b in beams]
     else:
       # greedy inference. lets write it up independently, should be bit faster and simpler

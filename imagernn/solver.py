@@ -12,14 +12,15 @@ class Solver:
     self.step_cache_ = {} # might need this
     self.step_cache2_ = {} # might need this
 
+#sooda: some Optimization option and do parameter update
   def step(self, batch, model, cost_function, **kwargs):
-    """ 
+    """
     perform a single batch update. Takes as input:
     - batch of data (X)
     - model (W)
     - cost function which takes batch, model
     """
-    
+
     learning_rate = kwargs.get('learning_rate', 0.0)
     update = kwargs.get('update', model.keys())
     grad_clip = kwargs.get('grad_clip', -1)
@@ -31,7 +32,7 @@ class Solver:
     if not (solver == 'vanilla' and momentum == 0):
       # lazily make sure we initialize step cache if needed
       for u in update:
-        if not u in self.step_cache_: 
+        if not u in self.step_cache_:
           self.step_cache_[u] = np.zeros(model[u].shape)
           if solver == 'adadelta':
             self.step_cache2_[u] = np.zeros(model[u].shape) # adadelta needs one more cache
@@ -64,7 +65,7 @@ class Solver:
         elif solver == 'rmsprop':
           self.step_cache_[p] = self.step_cache_[p] * decay_rate + (1.0 - decay_rate) * grads[p] ** 2
           dx = -(learning_rate * grads[p]) / np.sqrt(self.step_cache_[p] + smooth_eps)
-        
+
         elif solver == 'adagrad':
           self.step_cache_[p] += grads[p] ** 2
           dx = -(learning_rate * grads[p]) / np.sqrt(self.step_cache_[p] + smooth_eps)
@@ -87,7 +88,7 @@ class Solver:
     return out
 
   def gradCheck(self, batch, model, cost_function, **kwargs):
-    """ 
+    """
     perform gradient check.
     since gradcheck can be tricky (especially with relus involved)
     this function prints to console for visual inspection

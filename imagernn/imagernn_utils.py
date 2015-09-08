@@ -1,12 +1,12 @@
 from imagernn.generic_batch_generator import GenericBatchGenerator
 import numpy as np
 
-def decodeGenerator(params):
-  """ 
+def batchDecodeGenerator(params):
+  """
   in the future we may want to have different classes
   and options for them. For now there is this one generator
   implemented and simply returned here.
-  """ 
+  """
   return GenericBatchGenerator
 
 def eval_split(split, dp, model, params, misc, **kwargs):
@@ -14,7 +14,7 @@ def eval_split(split, dp, model, params, misc, **kwargs):
   # allow kwargs to override what is inside params
   eval_batch_size = kwargs.get('eval_batch_size', params.get('eval_batch_size',100))
   eval_max_images = kwargs.get('eval_max_images', params.get('eval_max_images', -1))
-  BatchGenerator = decodeGenerator(params)
+  BatchGenerator = batchDecodeGenerator(params)
   wordtoix = misc['wordtoix']
 
   print 'evaluating %s performance in batches of %d' % (split, eval_batch_size)
@@ -35,6 +35,6 @@ def eval_split(split, dp, model, params, misc, **kwargs):
       logppln += len(gtix)
       nsent += 1
 
-  ppl2 = 2 ** (logppl / logppln) 
+  ppl2 = 2 ** (logppl / logppln)
   print 'evaluated %d sentences and got perplexity = %f' % (nsent, ppl2)
   return ppl2 # return the perplexity

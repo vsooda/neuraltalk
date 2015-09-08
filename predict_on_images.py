@@ -10,7 +10,7 @@ import math
 import scipy.io
 
 from imagernn.solver import Solver
-from imagernn.imagernn_utils import decodeGenerator, eval_split
+from imagernn.imagernn_utils import batchDecodeGenerator, eval_split
 
 """
 This script is used to predict sentences for arbitrary images
@@ -18,7 +18,7 @@ that are located in a folder we call root_folder. It is assumed that
 the root_folder contains:
 - the raw images
 - a file tasks.txt that lists the images you'd like to use
-- a file vgg_feats.mat that contains the CNN features. 
+- a file vgg_feats.mat that contains the CNN features.
   You'll need to use the Matlab script I provided and point it at the
   root folder and its tasks.txt file to save the features.
 
@@ -40,7 +40,7 @@ def main(params):
   ixtoword = checkpoint['ixtoword']
 
   # output blob which we will dump to JSON for visualizing the results
-  blob = {} 
+  blob = {}
   blob['params'] = params
   blob['checkpoint_params'] = checkpoint_params
   blob['imgblobs'] = []
@@ -56,7 +56,7 @@ def main(params):
   D,N = features.shape
 
   # iterate over all images and predict sentences
-  BatchGenerator = decodeGenerator(checkpoint_params)
+  BatchGenerator = batchDecodeGenerator(checkpoint_params)
   for n in xrange(N):
     print 'image %d/%d:' % (n, N)
 
@@ -78,7 +78,7 @@ def main(params):
     top_prediction = top_predictions[0] # these are sorted with highest on top
     candidate = ' '.join([ixtoword[ix] for ix in top_prediction[1] if ix > 0]) # ix 0 is the END token, skip that
     print 'PRED: (%f) %s' % (top_prediction[0], candidate)
-    img_blob['candidate'] = {'text': candidate, 'logprob': top_prediction[0]}    
+    img_blob['candidate'] = {'text': candidate, 'logprob': top_prediction[0]}
     blob['imgblobs'].append(img_blob)
 
   # dump result struct to file

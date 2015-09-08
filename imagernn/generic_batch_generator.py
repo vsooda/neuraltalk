@@ -13,8 +13,8 @@ def decodeGenerator(generator):
     raise Exception('generator %s is not yet supported' % (base_generator_str,))
 
 class GenericBatchGenerator:
-  """ 
-  Base batch generator class. 
+  """
+  Base batch generator class.
   This class is aware of the fact that we are generating
   sentences from images.
   """
@@ -35,6 +35,9 @@ class GenericBatchGenerator:
       assert image_encoding_size == word_encoding_size, 'this implementation does not support different sizes for these parameters'
 
     # initialize the encoder models
+    #sooda: import define:..
+    #image and word embdeed to 256 demond
+
     model = {}
     model['We'] = initw(image_size, image_encoding_size) # image encoder
     model['be'] = np.zeros((1,image_encoding_size))
@@ -61,13 +64,13 @@ class GenericBatchGenerator:
     # encode all images
     # concatenate as rows. If N is number of image-sentence pairs,
     # F will be N x image_size
-    F = np.row_stack(x['image']['feat'] for x in batch) 
+    F = np.row_stack(x['image']['feat'] for x in batch) # batch_size * cnn_feature_size
     We = model['We']
     be = model['be']
     Xe = F.dot(We) + be # Xe becomes N x image_encoding_size
 
     # decode the generator we wish to use
-    generator_str = params.get('generator', 'lstm') 
+    generator_str = params.get('generator', 'lstm')
     Generator = decodeGenerator(generator_str)
 
     # encode all words in all sentences (which exist in our vocab)
@@ -82,9 +85,11 @@ class GenericBatchGenerator:
       # and then all the words afterwards. And start token is the first row of Ws
       ix = [0] + [ wordtoix[w] for w in x['sentence']['tokens'] if w in wordtoix ]
       Xs = np.row_stack( [Ws[j, :] for j in ix] )
+      #print 'sentence shape ', np.shape(Xs) #current_sentense_token_size * word_encoding_size
       Xi = Xe[i,:]
 
       # forward prop through the RNN
+      #sooda:core, do what
       gen_Y, gen_cache = Generator.forward(Xi, Xs, model, params, predict_mode = predict_mode)
       gen_caches.append((ix, gen_cache))
       Ys.append(gen_Y)
@@ -100,7 +105,7 @@ class GenericBatchGenerator:
       cache['generator_str'] = generator_str
 
     return Ys, cache
-    
+
   @staticmethod
   def backward(dY, cache):
     Xe = cache['Xe']
@@ -138,7 +143,7 @@ class GenericBatchGenerator:
   @staticmethod
   def predict(batch, model, params, **kwparams):
     """ some code duplication here with forward pass, but I think we want the freedom in future """
-    F = np.row_stack(x['image']['feat'] for x in batch) 
+    F = np.row_stack(x['image']['feat'] for x in batch)
     We = model['We']
     be = model['be']
     Xe = F.dot(We) + be # Xe becomes N x image_encoding_size
