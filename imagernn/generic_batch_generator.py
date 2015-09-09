@@ -64,6 +64,7 @@ class GenericBatchGenerator:
     # encode all images
     # concatenate as rows. If N is number of image-sentence pairs,
     # F will be N x image_size
+    #sooda: We, be is about image encoder. image encoder had not use rnn but simple embeding
     F = np.row_stack(x['image']['feat'] for x in batch) # batch_size * cnn_feature_size
     We = model['We']
     be = model['be']
